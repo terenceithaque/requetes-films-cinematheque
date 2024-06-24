@@ -1,0 +1,1 @@
+Ce programme sert à trouver les séances programmées à la Cinémathèque pour le trimestre actuel, et permet également de filtrer ces séances par date.
