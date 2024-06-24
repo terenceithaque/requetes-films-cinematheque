@@ -62,13 +62,17 @@ def find_id_prog():
 
 
 
-def trouver_seances(id_prog):
+def trouver_seances(id_prog, date_filter=None):
     "Trouver toutes les séances d'un trimestre ayant un ID donné"
     try:
         reponse = requests.get(f"https://api.cnmtq.fr/prog/{id_prog}/seances") # Envoyer une requête au serveur pour obtenir toutes les séances pour le trimestre ayant l'ID indiqué
         code_reponse = reponse.status_code # Code de la réponse (par exemple, 200)
         texte = reponse.text # Texte de la réponse
         donnees_json = toJSON(texte) # Convertir le texte dans un format compatible JSON
+        if date_filter is not None: # Si on doit filtrer les séances par une date précise
+            filtered = [seance for seance in donnees_json if seance["dateHeure"][:10] == str(date_filter)[:10]]
+            return filtered
+
         return donnees_json
     
     except reqexcpt.ConnectionError: # En cas d'erreur de connection
@@ -81,10 +85,15 @@ def trouver_seances(id_prog):
 
 id_prog = find_id_prog() # Envoyer une requête à l'API de la Cinémathèque
 
-seances = trouver_seances(id_prog) # Trouver toutes les séances pour le trimestre identifié par l'ID
+#date = datetime.datetime(2024, 7, 7)
+seances = trouver_seances(id_prog, date_filter=date_actuelle) # Trouver toutes les séances pour le trimestre identifié par l'ID, filtrées par la date actuelle
+print(seances)
 
 
+
+"""
 for seance in seances:
     for item in seance["items"]: 
         if "realisateurs" in item:
             print(item["titre"], f"({item["realisateurs"]})", seance["dateHeure"])
+"""            
