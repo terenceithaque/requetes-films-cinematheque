@@ -3,6 +3,9 @@ import requests # Importer le module requests pour faire des requêtes
 import requests.exceptions as reqexcpt # Importer le module exceptions de requests sous le nom reqexcpt ("requests exceptions")
 import datetime
 import json
+import sys
+
+
 
 date_actuelle = datetime.datetime.today()
 print(date_actuelle)
@@ -10,13 +13,13 @@ print(date_actuelle)
 
 
 
-def get_current_date(return_string=False):
+"""def get_current_date(return_string=False):
     "Obtenir la date actuelle"
     date_actuelle = datetime.datetime.today() # Obtenir la date actuelle
     if return_string: # Si on doit retourner la date sous forme de chaîne de caractères
         return str(date_actuelle) # Retourner la date sous forme de chaîne de caractères
     
-    return date_actuelle # Retourner la date actuelle
+    return date_actuelle # Retourner la date actuelle"""
 
 
 def toJSON(text_data):
@@ -85,15 +88,31 @@ def trouver_seances(id_prog, date_filter=None):
 
 id_prog = find_id_prog() # Envoyer une requête à l'API de la Cinémathèque
 
-#date = datetime.datetime(2024, 7, 7)
-seances = trouver_seances(id_prog, date_filter=date_actuelle) # Trouver toutes les séances pour le trimestre identifié par l'ID, filtrées par la date actuelle
-print(seances)
 
 
 
-"""
-for seance in seances:
-    for item in seance["items"]: 
-        if "realisateurs" in item:
-            print(item["titre"], f"({item["realisateurs"]})", seance["dateHeure"])
-"""            
+date = date_actuelle
+for arg in sys.argv: # Pour chaque argument donné au script
+    if arg.startswith("date_filter=") and arg[:12] is not "": # Si l'argument spécifie le filtre des séances par années
+        date = datetime.datetime.strptime(arg[12:], "%Y-%m-%d")
+
+
+
+
+
+seances = trouver_seances(id_prog, date_filter=date) # Trouver toutes les séances pour le trimestre identifié par l'ID, filtrées par la date actuelle
+#print(seances)
+
+
+if len(seances) > 0:
+    for seance in seances:
+        for item in seance["items"]: 
+            if "realisateurs" in item:
+                print(item["titre"], f"({item["realisateurs"]})", seance["dateHeure"])
+
+            else:
+                print(item["titre"], seance["dateHeure"])
+
+else:
+    print(f"Aucune séance n'a été programmée pour la date du {date if date_actuelle != date else date_actuelle}")                    
+            
