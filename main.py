@@ -26,6 +26,8 @@ print(date_actuelle)
 
 def convertir_date_formatee(date_formatee=str(date_actuelle)):
     "Convertir une date formatée dans une date lisible"
+    if date_formatee is None:
+        date = str(date_actuelle)
     print("Date formatée :", date_formatee)
     date = "" # Date finale, lisible
 
@@ -55,20 +57,23 @@ def convertir_date_formatee(date_formatee=str(date_actuelle)):
             "octobre":"10",
             "novembre":"11",
             "decembre":"12"} # Dictionnaire du nombre de mois par années
-    
-    annee_formatee, mois_formate,jour_formate = date_formatee.split("-")[0], date_formatee.split("-")[1], date_formatee.split("-")[2] # Année, mois et jours formaté contenus dans la date
-    
-    jour_affiche = jour_formate[:3].replace("T", "")# Jour tel qu'il est affiché dans la date lisible
-    heure = jour_formate[3:]  # Heure dans le jour
+    try:
+        annee_formatee, mois_formate,jour_formate = date_formatee.split("-")[0], date_formatee.split("-")[1], date_formatee.split("-")[2] # Année, mois et jours formaté contenus dans la date
+        jour_affiche = jour_formate[:3].replace("T", "")# Jour tel qu'il est affiché dans la date lisible
+        heure = jour_formate[3:]  # Heure dans le jour
     
 
-    for m in mois:
-        if mois[m] == mois_formate:
-            mois_affiche = m
+        for m in mois:
+            if mois[m] == mois_formate:
+                mois_affiche = m
 
-    annee_affichee = annee_formatee # Année telle qu'affichée dans la date lisible
+        annee_affichee = annee_formatee # Année telle qu'affichée dans la date lisible
 
-    return f"{jour_affiche} {mois_affiche} {annee_affichee} à {heure}"
+        return f"{jour_affiche} {mois_affiche} {annee_affichee} à {heure}"
+    
+    except IndexError as e:
+        print(f"Erreur lors de la conversion de la date {date}: {e}")
+        
 
 
 
@@ -146,6 +151,20 @@ def trouver_seances(id_prog, date_filter=None, other_filter=None):
         texte = reponse.text # Texte de la réponse
         donnees_json = toJSON(texte) # Convertir le texte dans un format compatible JSON
         filtered = [] # Données filtrées
+
+        if date_filter is not None and other_filter is not None: # Si l'utilisateur a appliqué un filtre de date et un autre filtre
+            filtered = [seance for seance in donnees_json if seance["dateHeure"][:10] == str(date_filter)[:10]] # Filtrer les séances par date
+            for seance in filtered:
+                
+                filtered = [seance for i, seance in enumerate(filtered) 
+                            if  any((str(cle)==other_filter or other_filter in str(cle) or str(valeur)==other_filter or other_filter in str(valeur)) 
+                            for cle, valeur in seance.items())] # Filtrer à nouveau les séances selon l'autre filtre donné
+                    
+                print(f"Séances filtrées par date et {other_filter}:", filtered)
+                  
+
+                return filtered                    
+
         if date_filter is not None: # Si on doit filtrer les séances par une date précise
             
             #print("Séance :", seance)
@@ -161,8 +180,16 @@ def trouver_seances(id_prog, date_filter=None, other_filter=None):
                             if str(cle)==other_filter or other_filter in str(cle) or str(valeur)==other_filter or other_filter in str(valeur):
                                 filtered.append(seance)
                                 #print(f"Séances filtrées par {other_filter}", filtered)
-                
+
+                            
+
+                        
                 return filtered
+        
+                
+
+
+                            
         
         
 
@@ -203,7 +230,6 @@ for arg in sys.argv: # Pour chaque argument donné au script
 
     if arg.startswith("filter=") and arg.split("=")[1:]: # Si l'argument indique qu'il faut appliquer un autre filtre
         filtre = "".join(arg.split("=")[1:])
-        date = None
         
     if arg == "save": # Si l'argument indique qu'il faut enregistrer
         save = True 
@@ -218,13 +244,13 @@ id_prog = find_id_prog() # Envoyer une requête à l'API de la Cinémathèque
     
 
 
-seances = trouver_seances(id_prog, date_filter=None, other_filter=filtre) # Trouver toutes les séances pour le trimestre identifié par l'ID, filtrées par la date actuelle
+seances = trouver_seances(id_prog, date_filter=date, other_filter=filtre) # Trouver toutes les séances pour le trimestre identifié par l'ID, filtrées par la date actuelle
 
 
 
 
 if len(seances) > 0:
-    print(f"Les séances suivantes ont été programmées pour la date du {date} :")
+    print(f"Les séances suivantes ont été programmées pour la date du {date if date is not None else date_actuelle} :")
     print() # Faire un saut à la ligne
     for seance in seances:
         for item in seance["items"]:
@@ -245,7 +271,7 @@ if len(seances) > 0:
                 continue
 
     if save: # S'il faut enregistrer les séances dans un fichier
-        enregistrer_donnees(seances, date=date if date is not None else date_actuelle)
+        enregistrer_donnees(seances, date=date)
 
 else:
         print(f"Aucune séance n'a été programmée pour la date du {convertir_date_formatee(str(date))}")
