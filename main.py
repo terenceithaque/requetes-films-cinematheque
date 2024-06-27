@@ -101,12 +101,18 @@ def find_id_prog(date=date_actuelle):
             id_prog = dict["id_prog"] # Identifiant du trimestre
             date_debut = dict["date_debut"][:10] # Obtenir la date de début du trimestre
             date_fin = dict["date_fin"][:10] # Obtenir la date de fin du trimestre
-            #print(f"Le trismetre avec l'identifiant {id_prog} a commencé le {date_debut} et s'est terminé le {date_fin}")
+                #print(f"Le trismetre avec l'identifiant {id_prog} a commencé le {date_debut} et s'est terminé le {date_fin}")
             if date > datetime.datetime.strptime(date_debut, "%Y-%m-%d") and date < datetime.datetime.strptime(date_fin, "%Y-%m-%d"): # Si la date actuelle est comprise entre la date début et la date de fin du trimestre
                 print(f"Le trimestre actuel a l'ID {id_prog}") # On en déduit l'identifiant est celui du trimestre actuel
                 break # Une fois l'identifiant du trimestre actuel trouvé, quitter la boucle
 
         return id_prog # Retourner l'identifiant du trimestre actuel
+        
+          
+
+
+                
+
     
     except reqexcpt.ConnectionError: # En cas d'erreur de connection
         print("Impossible de se connecter au serveur.")
@@ -136,7 +142,7 @@ def trouver_seances(id_prog, date_filter=None, other_filter=None):
 
                 return filtered                    
 
-        if date_filter is not None: # Si on doit filtrer les séances par une date précise
+        elif date_filter is not None: # Si on doit filtrer les séances par une date précise
             
             #print("Séance :", seance)
             filtered = [seance for seance in donnees_json if seance["dateHeure"][:10] == str(date_filter)[:10]]
@@ -146,17 +152,33 @@ def trouver_seances(id_prog, date_filter=None, other_filter=None):
         
         elif other_filter is not None:
                 for seance in donnees_json: # Pour chaque séance
-                        for cle, valeur in seance.items():
-                            print("Clé :", cle)
-                            print("Valeur :",valeur)
-                            if str(cle)==other_filter or other_filter in str(cle) or str(valeur)==other_filter or other_filter in str(valeur):
-                                filtered.append(seance)
+                            for cle, valeur in seance.items():
+                                print("Clé :", cle)
+                                print("Valeur :",valeur)
+                                if str(cle)==other_filter or other_filter in str(cle) or str(valeur)==other_filter or other_filter in str(valeur):
+                                    filtered.append(seance)
+                                    break # Quitter la boucle afin d'éviter les doublons
+
                                 #print(f"Séances filtrées par {other_filter}", filtered)
 
-                print(f"Séances filtrées par {other_filter}:", filtered)            
+                return filtered
+
+                    #print(f"Séances filtrées par {other_filter}:", filtered)            
+                
+                
+
+                              
+
 
                         
-                return filtered
+        
+        """elif other_filter is not None and date_filter is None:
+            filtered = [seance for i, seance in enumerate(filtered) 
+                            if  any((str(cle)==other_filter or other_filter in str(cle) or str(valeur)==other_filter or other_filter in str(valeur)) 
+                            for cle, valeur in seance.items())]
+
+            return filtered"""
+        
         return donnees_json
 
     except reqexcpt.ConnectionError: # En cas d'erreur de connection
@@ -202,7 +224,7 @@ def toCSV(data, date=date_actuelle):
 # Code principal, point d'entrée du script
 
 
-date = date_actuelle 
+date = None 
 filter = None # Filtre que l'utilisateur peut appliquer pour trouver des séances spécifiques
 
 for arg in args: # Pour chaque argument donné au script
@@ -212,9 +234,10 @@ for arg in args: # Pour chaque argument donné au script
         filter = "".join(arg.split("=")[1:])
             
 
-id_prog = find_id_prog() 
+id_prog = find_id_prog(date_actuelle) 
 seances = trouver_seances(id_prog, date_filter=date, other_filter=filter)
-if len(seances) >0: # Si des séances ont été trouvées selon les différents filtres
+print("seances n'est pas None")
+if len(seances) > 0: # Si des séances ont été trouvées selon les différents filtres
     seances = clean_json(seances)
     toCSV(seances, date=date if date is not None else date_actuelle)
 
