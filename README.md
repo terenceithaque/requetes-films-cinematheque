@@ -1,4 +1,4 @@
-Ce programme sert à trouver les séances programmées à la Cinémathèque pour le trimestre actuel, et permet également de filtrer ces séances par date.
+Ce programme sert à trouver les séances programmées à la Cinémathèque pour le trimestre actuel, et permet également de filtrer ces séances par date. Elles sont ensuite enregistrées dans un fichier au format standard CSV, et peuvent donc être consultées dans un tableur.
 
 Il est possible de fournir des arguments dans une console lors de l'exécution afin de modifier les résultats obtenus:
 
@@ -6,6 +6,6 @@ Il est possible de fournir des arguments dans une console lors de l'exécution a
 
     -> filter: Filtre les films selon un contenu spécifié. Par exemple, pour afficher uniquement les films de James Cameron, il faut saisir filter=James Cameron.
 
-    -> save: Si ce mot-clé est fourni, alors le programme va enregistrer toutes les séances sur le disque dur dans un fichier au format JSON (JavaScript Object Notation), qui est la norme utilisée par l'API interrogée.
+    
 
 

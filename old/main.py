@@ -1,20 +1,33 @@
-"Convertir du JSON dans un tableau au format CSV"
-# Script principal
-import json
-import requests
+# Script qui récupère des informations sur les trimestres 
+import requests # Importer le module requests pour faire des requêtes
 import requests.exceptions as reqexcpt # Importer le module exceptions de requests sous le nom reqexcpt ("requests exceptions")
-import csv
-import pandas
-from io import StringIO
-import sys
 import datetime
-import re
+import json
+import flatten_json
+import pandas 
+import sys
 import os
+import re
+from io import StringIO
 
 
-date_actuelle = datetime.datetime.today() # Date actuelle
 
-args = sys.argv # Liste des paramètres donnés au script
+
+date_actuelle = datetime.datetime.today() # Obtenir la date actuelle afin de déterminer quel est le trimestre actuel
+print(date_actuelle)
+
+
+
+
+
+
+"""def get_current_date(return_string=False):
+    "Obtenir la date actuelle"
+    date_actuelle = datetime.datetime.today() # Obtenir la date actuelle
+    if return_string: # Si on doit retourner la date sous forme de chaîne de caractères
+        return str(date_actuelle) # Retourner la date sous forme de chaîne de caractères
+    
+    return date_actuelle # Retourner la date actuelle"""
 
 def convertir_date_formatee(date_formatee=str(date_actuelle)):
     "Convertir une date formatée dans une date lisible"
@@ -61,7 +74,7 @@ def convertir_date_formatee(date_formatee=str(date_actuelle)):
 
         annee_affichee = annee_formatee # Année telle qu'affichée dans la date lisible
 
-        return f"{jour_affiche} {mois_affiche} {annee_affichee} à {heure} heures"
+        return f"{jour_affiche} {mois_affiche} {annee_affichee} à {heure}"
     
     except IndexError as e:
         print(f"Erreur lors de la conversion de la date {date}: {e}")
@@ -69,8 +82,36 @@ def convertir_date_formatee(date_formatee=str(date_actuelle)):
 
 
 
+    
 
 
+
+    
+    
+
+def enregistrer_donnees(donnees, date=date_actuelle):
+    "Enregistrer des données dans un fichier CSV"
+    
+    date = re.sub(r"\W+", "-", date.strftime('%Y-%m-%d_%H-%M-%S')) # Enlever les caractères interdits de la date
+    
+    json_data = json.loads(donnees)
+    json_flatten= pandas.read_json(StringIO(flatten_json.flatten(json_data))) # Lire les données JSON
+
+    
+    df = pandas.DataFrame(json_flatten) # Convertir les données dans un objet DataFrame
+    with open(f"seances_cinematheque_{date}.csv", "w") as f: # Créer un nouveau fichier csv ou écraser un fichier existant s'il a le même nom
+        colonnes = str(donnees).split("{")
+        csv_data = df.to_csv(f, encoding="utf-8", index=False) # Convertir le JSON en CSV
+        f.close() # Fermer le fichier
+        print(f"Les séances ont été enregistrées {os.path.abspath(f"seances_cinematheque_{date}.csv")}")
+
+
+
+
+def toJSON(text_data):
+    "Convertir des données texte sous forme de JSON"
+    donnees_json = json.loads(text_data)
+    return donnees_json
 
 
 def minutes_en_heures(minutes=60):
@@ -78,11 +119,7 @@ def minutes_en_heures(minutes=60):
     heures = minutes // 60 # Calculer le nombre d'heures en faisant une division entière de la séance en minutes
     minutes_restantes = minutes % 60 # Rajouter le nombre de minutes restantes au nombre d'heures
     return (heures, minutes_restantes)
-
-def toJSON(text_data):
-    "Convertir des données texte sous forme de JSON"
-    donnees_json = json.loads(text_data)
-    return donnees_json
+    
 
 
 def find_id_prog(date=date_actuelle):
@@ -107,21 +144,26 @@ def find_id_prog(date=date_actuelle):
                 break # Une fois l'identifiant du trimestre actuel trouvé, quitter la boucle
 
         return id_prog # Retourner l'identifiant du trimestre actuel
-    
+
+        
+
     except reqexcpt.ConnectionError: # En cas d'erreur de connection
         print("Impossible de se connecter au serveur.")
 
     except reqexcpt.Timeout: # Si la requête a expiré
         print("La requête n'a pas aboutit car le serveur a mis trop de temps à répondre.")    
+        
+
+
 
 def trouver_seances(id_prog, date_filter=None, other_filter=None):
-    "Récupérer le JSON depuis l'API de la Cinémathèque"
+    "Trouver toutes les séances d'un trimestre ayant un ID donné"
     try:
-        reponse = requests.get(f"https://api.cnmtq.fr/prog/{id_prog}/seances")  # Demander le programme actuel (actuellement 179)
-        code_reponse = reponse.status_code # Code renvoyé par le serveur (par exemple, 200)
-        texte_reponse = reponse.text # Obtenir le texte de la réponse
-        donnees_json = json.loads(texte_reponse) # Convertir le texte de la réponse en JSON
-        filtered = [] # Liste des séances filtrées
+        reponse = requests.get(f"https://api.cnmtq.fr/prog/{id_prog}/seances") # Envoyer une requête au serveur pour obtenir toutes les séances pour le trimestre ayant l'ID indiqué
+        code_reponse = reponse.status_code # Code de la réponse (par exemple, 200)
+        texte = reponse.text # Texte de la réponse
+        donnees_json = toJSON(texte) # Convertir le texte dans un format compatible JSON
+        filtered = [] # Données filtrées
 
         if date_filter is not None and other_filter is not None: # Si l'utilisateur a appliqué un filtre de date et un autre filtre
             filtered = [seance for seance in donnees_json if seance["dateHeure"][:10] == str(date_filter)[:10]] # Filtrer les séances par date
@@ -140,7 +182,6 @@ def trouver_seances(id_prog, date_filter=None, other_filter=None):
             
             #print("Séance :", seance)
             filtered = [seance for seance in donnees_json if seance["dateHeure"][:10] == str(date_filter)[:10]]
-            print(f"Séances filtrées par {date_filter}:", filtered)
             #print("Séances filtrées par date :", filtered)
             return filtered
         
@@ -153,74 +194,103 @@ def trouver_seances(id_prog, date_filter=None, other_filter=None):
                                 filtered.append(seance)
                                 #print(f"Séances filtrées par {other_filter}", filtered)
 
-                print(f"Séances filtrées par {other_filter}:", filtered)            
+                            
 
                         
                 return filtered
-        return donnees_json
+        
+                
 
+
+                            
+        
+        
+
+
+        
+        
+        
+        
+        
+
+            
+                    
+        
+
+
+
+        return donnees_json
+    
     except reqexcpt.ConnectionError: # En cas d'erreur de connection
         print("Impossible de se connecter au serveur.")
 
     except reqexcpt.Timeout: # Si la requête a expiré
-        print("La requête n'a pas aboutit car le serveur a mis trop de temps à répondre.") 
+        print("La requête n'a pas aboutit car le serveur a mis trop de temps à répondre.")    
 
 
-def clean_json(data):
-    "Renvoie un objet correspondant à du JSON `[{ titre, realisateurs, annee, dateHeure, duree }, ...]`"
-    liste_items = ["titre", "realisateurs", "annee", "duree"] # Liste des items à récupérer
-    donnees_json = [] # Objet json qui contiendra les données  
-    for seance in data: # Pour chaque séance
-        json_filtre = {}
-        
-        for item in seance["items"]:
-            for cle, valeur in item.items(): # Pour chaque clé et valeur du dictionnaire item
-                if cle in liste_items: # Si la clé actuelle fait partie des items à garder
-                    if cle == "duree": # Si la clé spécifie la durée en minutes de la séance
-                        duree = minutes_en_heures(valeur) # Durée convertie en heures et minutes
-                        heures = duree[0] # Durée en heures
-                        minutes = duree[1] # Durée en minutes
-                        json_filtre[cle] = f"{heures}h{minutes} minutes" # Ajouter la durée convertie en heures et minutes au JSON
-
-                    else: # Si la clé spécifie autre chose    
-                        json_filtre[cle] = valeur
-        
-        json_filtre["dateHeure"] = convertir_date_formatee(seance["dateHeure"])   
-        donnees_json.append(json_filtre)
-    return donnees_json                    
-
-def toCSV(data, date=date_actuelle):
-    "Convertir les données au format CSV"
-    date = re.sub(r"\W+", "-", date.strftime('%Y-%m-%d_%H-%M-%S')) # Enlever les caractères interdits de la date
-    data = json.dumps(data)
-    donnees_json = pandas.read_json(StringIO(data))
-    file = f"seances_{date}.csv"
-    donnees_json.to_csv(file, encoding="utf-8", index=False)
-    print(f"Les séances du {convertir_date_formatee(str(date))} ont été enregistrées dans {os.path.abspath(file)} ")
 
 
-# Code principal, point d'entrée du script
 
 
-date = date_actuelle 
-filter = None # Filtre que l'utilisateur peut appliquer pour trouver des séances spécifiques
 
-for arg in args: # Pour chaque argument donné au script
+date = date_actuelle
+filtre = None # Filtre que l'utilisateur peut appliquer pour trouver uniquement certaines séances
+save = False # Variable pour déterminer s'il faut enregistrer les données dans un fichier
+for arg in sys.argv: # Pour chaque argument donné au script
     if arg.startswith("date_filter=") and arg.split("=")[1]: # Si l'argument spécifie le filtre des séances par années
         date = datetime.datetime.strptime(arg[12:], "%Y-%m-%d")
-    if arg.startswith("filter=") and arg.split("=")[1:]: # Si l'argument indique qu'il faut appliquer un autre filtre
-        filter = "".join(arg.split("=")[1:])
-            
 
-id_prog = find_id_prog() 
-seances = trouver_seances(id_prog, date_filter=date, other_filter=filter)
-if len(seances) >0: # Si des séances ont été trouvées selon les différents filtres
-    seances = clean_json(seances)
-    toCSV(seances, date=date if date is not None else date_actuelle)
+
+    if arg.startswith("filter=") and arg.split("=")[1:]: # Si l'argument indique qu'il faut appliquer un autre filtre
+        filtre = "".join(arg.split("=")[1:])
+        
+    if arg == "save": # Si l'argument indique qu'il faut enregistrer
+        save = True 
+
+
+    
+    
+
+
+id_prog = find_id_prog() # Envoyer une requête à l'API de la Cinémathèque
+        
+    
+
+
+seances = trouver_seances(id_prog, date_filter=date, other_filter=filtre) # Trouver toutes les séances pour le trimestre identifié par l'ID, filtrées par la date actuelle
+
+
+
+
+if len(seances) > 0:
+    print(f"Les séances suivantes ont été programmées pour la date du {date if date is not None else date_actuelle} :")
+    print() # Faire un saut à la ligne
+    for seance in seances:
+        for item in seance["items"]:
+            #print(item)
+
+            try:
+
+                duree = minutes_en_heures(item["duree"]) # Durée de la séance convertie en heures
+                heures = duree[0] # Durée en heures
+                minutes = duree[1] # Durée en minutes
+                if "realisateurs" in item:
+                    print("Titre :", item["titre"],f"({item["annee"]})",  ", Realisateur(s) :", f"{item["realisateurs"]}", ", Horaires de la séance :", convertir_date_formatee(seance["dateHeure"]), f", Durée de la séance : {heures} heure(s) {minutes} minutes")
+
+                else:
+                 print("Titre :", item["titre"], f"({item["annee"]})", ", Horaires de la séance :", convertir_date_formatee(seance["dateHeure"]), f", Durée de la séance : {heures} heures {minutes} minutes")
+
+            except KeyError:
+                continue
+
+    if save: # S'il faut enregistrer les séances dans un fichier
+        enregistrer_donnees(seances, date=date)
 
 else:
-    print(f"Aucune séance n'a été trouvée pour la date du {convertir_date_formatee(str(date))}")    
+        print(f"Aucune séance n'a été programmée pour la date du {convertir_date_formatee(str(date))}")
+
+    
 
 
 
-
+            
