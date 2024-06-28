@@ -10,6 +10,7 @@ import sys
 import datetime
 import re
 import os
+from plyer import notification
 
 
 date_actuelle = datetime.datetime.today() # Date actuelle
@@ -115,7 +116,7 @@ def find_id_prog(date=date_actuelle):
 
     
     except reqexcpt.ConnectionError: # En cas d'erreur de connection
-        print("Impossible de se connecter au serveur.")
+        print("Impossible de se connecter au serveur en raison d'une connection réseau trop faible ou inexistante.")
 
     except reqexcpt.Timeout: # Si la requête a expiré
         print("La requête n'a pas aboutit car le serveur a mis trop de temps à répondre.")    
@@ -153,14 +154,12 @@ def trouver_seances(id_prog, date_filter=None, other_filter=None):
         elif other_filter is not None:
                 for seance in donnees_json: # Pour chaque séance
                             for cle, valeur in seance.items():
-                                print("Clé :", cle)
-                                print("Valeur :",valeur)
                                 if str(cle)==other_filter or other_filter in str(cle) or str(valeur)==other_filter or other_filter in str(valeur):
                                     filtered.append(seance)
                                     break # Quitter la boucle afin d'éviter les doublons
 
                                 #print(f"Séances filtrées par {other_filter}", filtered)
-
+                            
                 return filtered
 
                     #print(f"Séances filtrées par {other_filter}:", filtered)            
@@ -182,11 +181,13 @@ def trouver_seances(id_prog, date_filter=None, other_filter=None):
         return donnees_json
 
     except reqexcpt.ConnectionError: # En cas d'erreur de connection
-        print("Impossible de se connecter au serveur.")
-
+        print("Impossible de se connecter au serveur en raison d'une connection réseau trop faible ou inexistante.")
+        notification.notify(title="Connexion trop faible ou inexistante", message="La connection au serveur est impossible car la connection réseau est trop faible ou inexistante. Vérifiez l'état de votre connexion à Internet, puis réessayez.", timeout=10000, toast=True)
+        
     except reqexcpt.Timeout: # Si la requête a expiré
         print("La requête n'a pas aboutit car le serveur a mis trop de temps à répondre.") 
-
+        notification.notify(title="Le délai d'attente a expiré", message="La connection au serveur a été réalisée avec succès, mais le délai d'attente a expiré.", timeout=10000, toast=True)
+        
 
 def clean_json(data):
     "Renvoie un objet correspondant à du JSON `[{ titre, realisateurs, annee, dateHeure, duree }, ...]`"
@@ -204,6 +205,8 @@ def clean_json(data):
                         minutes = duree[1] # Durée en minutes
                         json_filtre[cle] = f"{heures}h{minutes} minutes" # Ajouter la durée convertie en heures et minutes au JSON
 
+
+
                     else: # Si la clé spécifie autre chose    
                         json_filtre[cle] = valeur
         
@@ -211,14 +214,61 @@ def clean_json(data):
         donnees_json.append(json_filtre)
     return donnees_json                    
 
-def toCSV(data, date=date_actuelle):
+def toCSV(data, date=date_actuelle, filter=None):
     "Convertir les données au format CSV"
-    date = re.sub(r"\W+", "-", date.strftime('%Y-%m-%d_%H-%M-%S')) # Enlever les caractères interdits de la date
+    if date is not None: # Si une date a été fournie
+        date = re.sub(r"\W+", "-", date.strftime('%Y-%m-%d_%H-%M-%S')) # Enlever les caractères interdits de la date
+    
+                        
     data = json.dumps(data)
+
+    
     donnees_json = pandas.read_json(StringIO(data))
-    file = f"seances_{date}.csv"
-    donnees_json.to_csv(file, encoding="utf-8", index=False)
-    print(f"Les séances du {convertir_date_formatee(str(date))} ont été enregistrées dans {os.path.abspath(file)} ")
+
+    #file = f"seances_{date if date is not None else ""}.csv"
+    if date is not None and filter is not None: # Si une date et un filtre ont été fournis
+        file = f"seances_{date}_{filter}.csv" # Nommer le fichier CSV avec la date puis le filtre
+        donnees_json.to_csv(file, encoding="utf-8", index=False)
+        if date is not None:
+            print(f"Les séances du {convertir_date_formatee(str(date))} filtrées par {filter} ont été enregistrées dans {os.path.abspath(file)}")
+            print(f"Toutes les séances ont été enregistrées dans {os.path.abspath(file)}")
+    
+        notification.notify(title="Séances enregistrées", message=f"Les séances ont été enregistrées dans le fichier {os.path.abspath(file)} et peuvent dorénavant être consultées dans un tableur", timeout=10000, toast=True)
+    
+
+    elif date is not None and filter is None: # Si seulement une date a été fournie
+        file = f"seances_{date}.csv" # Nommer le fichier avec la date
+        donnees_json.to_csv(file, encoding="utf-8", index=False)
+
+        print(f"Les séances du {convertir_date_formatee(str(date))} ont été enregistrées dans {os.path.abspath(file)}")
+
+    
+        notification.notify(title="Séances enregistrées", message=f"Les séances ont été enregistrées dans le fichier {os.path.abspath(file)} et peuvent dorénavant être consultées dans un tableur", timeout=10000, toast=True)
+    
+
+    elif filter is not None and date is None: # Si seulement un filtre autre que la date a été fourni
+        file = f"seances_{filter}.csv"  
+        donnees_json.to_csv(file, encoding="utf-8", index=False)
+    
+        print(f"Toutes les séances filtrées par {filter} ont été enregistrées dans {os.path.abspath(file)}")
+    
+        notification.notify(title="Séances enregistrées", message=f"Les séances ont été enregistrées dans le fichier {os.path.abspath(file)} et peuvent dorénavant être consultées dans un tableur", timeout=10000, toast=True)
+    
+
+    else:
+        file = f"seances.csv"
+        donnees_json.to_csv(file, encoding="utf-8", index=False)
+    
+        print(f"Toutes les séances ont été enregistrées dans {os.path.abspath(file)}")
+    
+        notification.notify(title="Séances enregistrées", message=f"Les séances ont été enregistrées dans le fichier {os.path.abspath(file)} et peuvent dorénavant être consultées dans un tableur", timeout=10000, toast=True)
+    
+
+
+
+    
+
+    
 
 
 # Code principal, point d'entrée du script
@@ -232,17 +282,20 @@ for arg in args: # Pour chaque argument donné au script
         date = datetime.datetime.strptime(arg[12:], "%Y-%m-%d")
     if arg.startswith("filter=") and arg.split("=")[1:]: # Si l'argument indique qu'il faut appliquer un autre filtre
         filter = "".join(arg.split("=")[1:])
+        
+        print("filtre :", filter)
             
 
 id_prog = find_id_prog(date_actuelle) 
 seances = trouver_seances(id_prog, date_filter=date, other_filter=filter)
-print("seances n'est pas None")
-if len(seances) > 0: # Si des séances ont été trouvées selon les différents filtres
-    seances = clean_json(seances)
-    toCSV(seances, date=date if date is not None else date_actuelle)
+if seances is not None:
+    print("seances n'est pas None")
+    if len(seances) > 0: # Si des séances ont été trouvées selon les différents filtres
+        seances = clean_json(seances)
+        toCSV(seances, date=date, filter=filter)
 
-else:
-    print(f"Aucune séance n'a été trouvée pour la date du {convertir_date_formatee(str(date))}")    
+    else:
+        print(f"Aucune séance n'a été trouvée pour la date du {convertir_date_formatee(str(date))}")    
 
 
 
